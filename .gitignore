@@ -1,0 +1,32 @@
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local and vendored dependencies
+vendor/
+.build-tools/
+
+# Build and release output
+build/
+release/
+dist/
+*.spec.bak
+
+# Runtime and analysis output
+jobs/
+.analysis/
+tmp*/
+*.log
+self-test.json
+
+# Generated corrected PDFs
+*_已修正方向版.pdf
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+

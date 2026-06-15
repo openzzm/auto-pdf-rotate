@@ -1,0 +1,7 @@
+Flask
+numpy
+opencv-python
+PyMuPDF
+pywebview
+rapidocr-onnxruntime
+
