@@ -1,49 +1,113 @@
-# PDF 页面方向自动修正
+# Auto PDF Rotate
 
-双击 `启动网页.bat`，浏览器会打开 `http://127.0.0.1:8765`。
+[简体中文](README.zh-CN.md)
 
-点击“选择 PDF 文件”后，Python 会打开系统文件选择框。处理完成后，程序会在源文件同目录自动生成：
+A local Windows tool that detects sideways and upside-down pages in scanned PDF documents and creates a corrected copy beside the source file.
 
-`源文件名_已修正方向版.pdf`
+The application runs entirely on your computer. It does not upload documents, expose a download endpoint, or alter the original PDF.
 
-程序会：
+## Features
 
-1. 先进行一次轻量文字框检测；仅对疑似横倒页面进行第二次检测。
-2. 使用方向分类模型判断文字正向或倒置。
-3. 仅在文字数量、置信度和领先幅度均达到阈值时自动旋转。
-4. 保持扫描图像原始质量，生成修正后的 PDF。
-5. 将分析报告等临时任务文件保存在 `jobs` 文件夹，并在服务关闭时清理。
+- Detects page orientation with RapidOCR and ONNX Runtime.
+- Preserves the original PDF and saves a corrected sibling file.
+- Uses conservative confidence thresholds to leave uncertain pages unchanged.
+- Retries difficult pages at a higher rendering resolution.
+- Shows progress, elapsed time, average page time, and estimated remaining time.
+- Provides English and Simplified Chinese documentation; English is the default README.
+- Provides browser mode and a portable Windows desktop build.
+- Cleans worker threads, task metadata, and temporary files when the application closes.
 
-程序完全在本机运行，不提供上传或下载操作。关闭命令行窗口即可停止服务并清理临时任务文件，自动保存的修正 PDF 不会被删除。
+## Output
 
-## 本地运行
+Selecting:
 
-推荐使用 Python 3.12：
+```text
+document.pdf
+```
+
+creates:
+
+```text
+document_已修正方向版.pdf
+```
+
+in the same directory. The original file is not modified.
+
+## Requirements
+
+- Windows 10 or Windows 11
+- Python 3.12 recommended
+
+## Run From Source
 
 ```powershell
+git clone https://github.com/openzzm/auto-pdf-rotate.git
+cd auto-pdf-rotate
 python -m pip install -r requirements.txt
 python app.py
 ```
 
-浏览器模式会在 `http://127.0.0.1:8765` 提供界面。也可以双击 `启动网页.bat` 自动启动并打开浏览器。
+Open `http://127.0.0.1:8765` after the server starts.
 
-## 构建便携版
+On Windows, `启动网页.bat` can also start browser mode.
 
-先安装构建依赖，再运行打包脚本：
+## Build The Portable Application
+
+Install build dependencies:
 
 ```powershell
 python -m pip install -r requirements-build.txt
+```
+
+Build the PyInstaller `onedir` package:
+
+```powershell
 .\build-portable.ps1 -PythonExecutable "C:\Path\To\Python312\python.exe"
 ```
 
-构建结果位于 `release\AutoPDFRotate-Portable`。复制整个目录到其他 Windows x64 电脑，双击 `AutoPDFRotate.exe` 即可运行。
-`release` 目录属于本地构建产物，不提交到源码仓库。
+The portable application is generated at:
 
-## 性能
+```text
+release\AutoPDFRotate-Portable\AutoPDFRotate.exe
+```
 
-程序不会再对每页执行四次完整 OCR。正常页面只执行一次文字框检测和一次轻量方向分类，
-仅对文字稀少或疑似横倒页面执行第二次检测。
+Copy the entire `AutoPDFRotate-Portable` directory when moving the application to another computer.
 
-测试用的 71 页扫描 PDF 在当前电脑上约 25 秒完成，实际速度取决于页面数量、分辨率和电脑性能。
+## Tests
 
-处理页面会动态显示已用时间、平均每页耗时和预计剩余时间，完成后显示实际总耗时。
+```powershell
+python -m unittest discover -s tests -v
+```
+
+The test suite covers rotation decisions, output naming, automatic sibling-file saving, cleanup behavior, and the desktop bridge.
+
+## How It Works
+
+1. Render each page at a lightweight analysis resolution.
+2. Detect text regions and classify their orientation.
+3. Rotate only when vote count, confidence, and margin thresholds are met.
+4. Retry sparse or conflicting pages at a higher resolution.
+5. Save the corrected PDF and an internal analysis report.
+6. Remove temporary task data when the service closes.
+
+## Project Structure
+
+```text
+app.py                  Flask server, PDF processing, desktop startup
+templates/index.html    Application interface
+static/app.js           UI behavior
+static/style.css        Interface styling
+tests/                  Automated regression tests
+portable.spec           PyInstaller configuration
+build-portable.ps1      Portable build script
+```
+
+## Privacy
+
+All PDF processing is local. Temporary analysis reports are stored under `jobs` while the application is running and are deleted during normal shutdown. Corrected PDF files are retained beside their source files.
+
+## Known Limitations
+
+- Text-free pages and unusual layouts may not provide enough orientation evidence.
+- The desktop build targets Windows x64.
+- Closing the process forcibly may prevent graceful cleanup.
