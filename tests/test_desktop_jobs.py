@@ -26,6 +26,13 @@ class DesktopPathJobTests(unittest.TestCase):
         source = Path(r"C:\documents\单位工程竣工文件(2).pdf")
         self.assertEqual(
             app.output_path_for(source),
+            source.with_name("单位工程竣工文件(2)_corrected_orientation.pdf"),
+        )
+
+    def test_output_path_uses_chinese_suffix_for_chinese_language(self):
+        source = Path(r"C:\documents\单位工程竣工文件(2).pdf")
+        self.assertEqual(
+            app.output_path_for(source, "zh-CN"),
             source.with_name("单位工程竣工文件(2)_已修正方向版.pdf"),
         )
 
@@ -75,20 +82,31 @@ class DesktopPathJobTests(unittest.TestCase):
         desktop_api = app.DesktopApi()
 
         with patch.object(app, "create_path_job", return_value="job-id") as create:
-            response = desktop_api.start_pdf_path(str(source))
+            response = desktop_api.start_pdf_path(str(source), "zh-CN")
 
         self.assertEqual(response, {"ok": True, "job_id": "job-id", "source": str(source)})
-        create.assert_called_once_with(source)
+        create.assert_called_once_with(source, "zh-CN")
+
+    def test_desktop_api_passes_language_from_picker_selection(self):
+        source = Path(__file__).resolve()
+        desktop_api = app.DesktopApi()
+        desktop_api.window = FakeWindow([str(source)])
+
+        with patch.object(app, "create_path_job", return_value="job-id") as create:
+            response = desktop_api.select_pdf("zh-CN")
+
+        self.assertEqual(response, {"ok": True, "job_id": "job-id", "source": str(source)})
+        create.assert_called_once_with(source, "zh-CN")
 
     def test_browser_selection_endpoint_creates_path_job(self):
         source = Path(__file__).resolve()
         with patch.object(app, "select_pdf_path", return_value=source):
             with patch.object(app, "create_path_job", return_value="job-id") as create:
-                response = app.app.test_client().post("/api/select-pdf")
+                response = app.app.test_client().post("/api/select-pdf", json={"language": "zh-CN"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["job_id"], "job-id")
-        create.assert_called_once_with(source)
+        create.assert_called_once_with(source, "zh-CN")
 
     def test_browser_selection_endpoint_returns_cancelled(self):
         with patch.object(app, "select_pdf_path", return_value=None):

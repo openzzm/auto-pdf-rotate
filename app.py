@@ -16,7 +16,7 @@ sys.path.insert(0, str(BUNDLE_ROOT / "vendor"))
 import cv2
 import fitz
 import numpy as np
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 from rapidocr_onnxruntime import RapidOCR
 
 
@@ -37,25 +37,31 @@ if getattr(sys, "frozen", False):
 JOB_ROOT.mkdir(exist_ok=True)
 OCR = RapidOCR()
 INVALID_FILENAME_CHARACTERS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+DEFAULT_LANGUAGE = "en"
+SUPPORTED_LANGUAGES = {"en", "zh-CN"}
+OUTPUT_SUFFIXES = {
+    "en": "corrected_orientation",
+    "zh-CN": "已修正方向版",
+}
 
 
 class DesktopApi:
     def __init__(self):
         self.window = None
 
-    def select_pdf(self):
+    def select_pdf(self, language=DEFAULT_LANGUAGE):
         source = select_pdf_path(self.window)
         if not source:
             return {"ok": False, "cancelled": True}
         try:
-            return {"ok": True, "job_id": create_path_job(source), "source": str(source)}
+            return {"ok": True, "job_id": create_path_job(source, language), "source": str(source)}
         except Exception as exc:
             return {"ok": False, "message_key": "error.selectFailed", "message_params": {"details": str(exc)}}
 
-    def start_pdf_path(self, source):
+    def start_pdf_path(self, source, language=DEFAULT_LANGUAGE):
         source = Path(source)
         try:
-            return {"ok": True, "job_id": create_path_job(source), "source": str(source)}
+            return {"ok": True, "job_id": create_path_job(source, language), "source": str(source)}
         except Exception as exc:
             return {"ok": False, "message_key": "error.selectFailed", "message_params": {"details": str(exc)}}
 
@@ -75,6 +81,12 @@ def setup_desktop_drag_and_drop(window, desktop_api):
     def prevent_default(_event):
         return None
 
+    def current_window_language():
+        try:
+            return normalize_language(window.evaluate_js("window.autoPdfRotateLanguage || 'en'"))
+        except Exception:
+            return DEFAULT_LANGUAGE
+
     def on_drop(event):
         files = event.get("dataTransfer", {}).get("files", [])
         source = None
@@ -86,7 +98,7 @@ def setup_desktop_drag_and_drop(window, desktop_api):
         if not source:
             emit("pdf-drop-error", {"key": "error.invalidDrop"})
             return
-        emit("pdf-path-selected", desktop_api.start_pdf_path(source))
+        emit("pdf-path-selected", desktop_api.start_pdf_path(source, current_window_language()))
 
     def attach_handlers():
         document = window.dom.document
@@ -101,16 +113,21 @@ def set_job(job_id, **values):
         JOBS.setdefault(job_id, {}).update(values)
 
 
-def output_filename_for(source_filename):
+def normalize_language(language):
+    return language if language in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
+
+
+def output_filename_for(source_filename, language=DEFAULT_LANGUAGE):
     source_name = source_filename.replace("\\", "/").rsplit("/", 1)[-1]
     stem = Path(source_name).stem.strip(" .") or "document"
     safe_stem = INVALID_FILENAME_CHARACTERS.sub("_", stem).strip(" .") or "document"
-    return f"{safe_stem}_已修正方向版.pdf"
+    suffix = OUTPUT_SUFFIXES[normalize_language(language)]
+    return f"{safe_stem}_{suffix}.pdf"
 
 
-def output_path_for(source):
+def output_path_for(source, language=DEFAULT_LANGUAGE):
     source = Path(source)
-    return source.with_name(output_filename_for(source.name))
+    return source.with_name(output_filename_for(source.name, language))
 
 
 def select_pdf_path(window=None):
@@ -354,21 +371,23 @@ def index():
 
 @app.post("/api/select-pdf")
 def select_pdf():
+    payload = request.get_json(silent=True) or {}
+    language = normalize_language(payload.get("language"))
     source = select_pdf_path()
     if not source:
         return jsonify({"ok": False, "cancelled": True})
     try:
-        return jsonify({"ok": True, "job_id": create_path_job(source), "source": str(source)})
+        return jsonify({"ok": True, "job_id": create_path_job(source, language), "source": str(source)})
     except Exception as exc:
         return jsonify({"ok": False, "message_key": "error.selectFailed", "message_params": {"details": str(exc)}}), 400
 
 
-def create_path_job(source):
+def create_path_job(source, language=DEFAULT_LANGUAGE):
     source = Path(source).resolve()
     if not source.is_file() or source.suffix.lower() != ".pdf":
         raise ValueError("Please select a valid PDF file")
     job_id = uuid.uuid4().hex
-    output = output_path_for(source)
+    output = output_path_for(source, language)
     set_job(
         job_id,
         status="queued",

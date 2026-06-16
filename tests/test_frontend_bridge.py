@@ -51,6 +51,14 @@ class FrontendBridgeTests(unittest.TestCase):
         self.assertIn('"app.title": "Auto PDF Rotate"', english)
         self.assertIn('"app.title": "PDF 页面方向自动修正"', chinese)
 
+    def test_current_language_is_sent_when_starting_jobs(self):
+        script = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("window.autoPdfRotateLanguage = currentLanguage", script)
+        self.assertIn("select_pdf(currentLanguage)", script)
+        self.assertIn("start_pdf_path(path, currentLanguage)", script)
+        self.assertIn("JSON.stringify({ language: currentLanguage })", script)
+
 
 if __name__ == "__main__":
     unittest.main()

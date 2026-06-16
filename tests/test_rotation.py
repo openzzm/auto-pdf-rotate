@@ -50,16 +50,22 @@ class RotationRegressionTests(unittest.TestCase):
 
 
 class OutputFilenameTests(unittest.TestCase):
-    def test_preserves_chinese_source_name(self):
+    def test_english_output_suffix_is_default(self):
         self.assertEqual(
             app.output_filename_for("单位工程竣工文件(2).pdf"),
+            "单位工程竣工文件(2)_corrected_orientation.pdf",
+        )
+
+    def test_chinese_output_suffix_when_language_is_chinese(self):
+        self.assertEqual(
+            app.output_filename_for("单位工程竣工文件(2).pdf", "zh-CN"),
             "单位工程竣工文件(2)_已修正方向版.pdf",
         )
 
     def test_removes_path_and_windows_invalid_characters(self):
         self.assertEqual(
             app.output_filename_for(r"C:\fakepath\工程<>报告.pdf"),
-            "工程__报告_已修正方向版.pdf",
+            "工程__报告_corrected_orientation.pdf",
         )
 
 

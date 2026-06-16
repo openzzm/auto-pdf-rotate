@@ -84,7 +84,7 @@ function bindEvents() {
       selectFile.disabled = true;
       try {
         await waitForDesktopApi();
-        startJobFromResponse(await window.pywebview.api.start_pdf_path(path));
+        startJobFromResponse(await window.pywebview.api.start_pdf_path(path, currentLanguage));
       } catch (e) {
         showError(e.message);
       }
@@ -122,6 +122,7 @@ async function loadLanguage(language) {
 function applyLanguage() {
   document.documentElement.lang = currentLanguage;
   document.title = t("app.title");
+  window.autoPdfRotateLanguage = currentLanguage;
   languageSelect.value = currentLanguage;
   document.querySelectorAll("[data-i18n]").forEach(element => {
     element.textContent = t(element.dataset.i18n);
@@ -160,7 +161,7 @@ function startJobFromResponse(response) {
 async function selectPdf() {
   if (isDesktop) {
     await waitForDesktopApi();
-    return window.pywebview.api.select_pdf();
+    return window.pywebview.api.select_pdf(currentLanguage);
   }
   return selectPdfFromLocalServer();
 }
@@ -205,7 +206,11 @@ function waitForDesktopApi() {
 }
 
 async function selectPdfFromLocalServer() {
-  const response = await fetch("/api/select-pdf", { method: "POST" });
+  const response = await fetch("/api/select-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ language: currentLanguage }),
+  });
   const body = await response.json();
   if (!response.ok) throw new Error(t(body.message_key || "error.selectFailed", body.message_params || {}));
   return body;
