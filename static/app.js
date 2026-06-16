@@ -25,26 +25,82 @@ selectFile.addEventListener("click", async () => {
   result.classList.add("hidden");
   try {
     const response = await selectPdf();
-    if (response.cancelled) {
-      selectFile.disabled = false;
-      return;
-    }
-    if (!response.ok) throw new Error(response.message || "选择文件失败");
-
-    fileName.textContent = response.source;
-    progressBox.classList.remove("hidden");
-    displayedElapsed = 0;
-    updateTimeDisplay();
-    clearInterval(timer);
-    timer = setInterval(() => {
-      displayedElapsed += 1;
-      updateTimeDisplay();
-    }, 1000);
-    poll(response.job_id);
+    startJobFromResponse(response);
   } catch (e) {
     showError(e.message);
   }
 });
+
+selectFile.addEventListener("dragover", event => {
+  event.preventDefault();
+  if (!selectFile.disabled) selectFile.classList.add("drag-over");
+});
+
+selectFile.addEventListener("dragleave", event => {
+  if (!selectFile.contains(event.relatedTarget)) {
+    selectFile.classList.remove("drag-over");
+  }
+});
+
+selectFile.addEventListener("drop", async event => {
+  event.preventDefault();
+  selectFile.classList.remove("drag-over");
+  error.classList.add("hidden");
+  result.classList.add("hidden");
+  const file = event.dataTransfer?.files?.[0];
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith(".pdf")) {
+    showError("请拖拽有效的 PDF 文件");
+    return;
+  }
+  if (isDesktop) {
+    const path = file.pywebviewFullPath || file.path;
+    if (!path) return;
+    selectFile.disabled = true;
+    try {
+      await waitForDesktopApi();
+      startJobFromResponse(await window.pywebview.api.start_pdf_path(path));
+    } catch (e) {
+      showError(e.message);
+    }
+    return;
+  }
+  showError("浏览器拖拽无法获取源文件路径，请点击选择 PDF 文件");
+});
+
+window.addEventListener("pdf-path-selected", event => {
+  selectFile.disabled = true;
+  error.classList.add("hidden");
+  result.classList.add("hidden");
+  try {
+    startJobFromResponse(event.detail);
+  } catch (e) {
+    showError(e.message);
+  }
+});
+
+window.addEventListener("pdf-drop-error", event => {
+  showError(event.detail.message);
+});
+
+function startJobFromResponse(response) {
+  if (response.cancelled) {
+    selectFile.disabled = false;
+    return;
+  }
+  if (!response.ok) throw new Error(response.message || "选择文件失败");
+
+  fileName.textContent = response.source;
+  progressBox.classList.remove("hidden");
+  displayedElapsed = 0;
+  updateTimeDisplay();
+  clearInterval(timer);
+  timer = setInterval(() => {
+    displayedElapsed += 1;
+    updateTimeDisplay();
+  }, 1000);
+  poll(response.job_id);
+}
 
 async function selectPdf() {
   if (isDesktop) {

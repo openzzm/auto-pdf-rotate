@@ -53,6 +53,16 @@ class DesktopPathJobTests(unittest.TestCase):
         desktop_api.window = FakeWindow(None)
         self.assertEqual(desktop_api.select_pdf(), {"ok": False, "cancelled": True})
 
+    def test_desktop_api_can_start_job_from_dropped_path(self):
+        source = Path(__file__).resolve()
+        desktop_api = app.DesktopApi()
+
+        with patch.object(app, "create_path_job", return_value="job-id") as create:
+            response = desktop_api.start_pdf_path(str(source))
+
+        self.assertEqual(response, {"ok": True, "job_id": "job-id", "source": str(source)})
+        create.assert_called_once_with(source)
+
     def test_browser_selection_endpoint_creates_path_job(self):
         source = Path(__file__).resolve()
         with patch.object(app, "select_pdf_path", return_value=source):

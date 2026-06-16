@@ -52,6 +52,49 @@ class DesktopApi:
         except Exception as exc:
             return {"ok": False, "message": str(exc)}
 
+    def start_pdf_path(self, source):
+        source = Path(source)
+        try:
+            return {"ok": True, "job_id": create_path_job(source), "source": str(source)}
+        except Exception as exc:
+            return {"ok": False, "message": str(exc)}
+
+
+def setup_desktop_drag_and_drop(window, desktop_api):
+    from webview.dom import DOMEventHandler
+
+    def emit(name, detail):
+        window.evaluate_js(
+            "window.dispatchEvent(new CustomEvent("
+            + json.dumps(name)
+            + ", { detail: "
+            + json.dumps(detail, ensure_ascii=False)
+            + " }));"
+        )
+
+    def prevent_default(_event):
+        return None
+
+    def on_drop(event):
+        files = event.get("dataTransfer", {}).get("files", [])
+        source = None
+        for file in files:
+            path = file.get("pywebviewFullPath") or file.get("path")
+            if path and Path(path).suffix.lower() == ".pdf":
+                source = path
+                break
+        if not source:
+            emit("pdf-drop-error", {"message": "请拖拽有效的 PDF 文件，或点击选择文件"})
+            return
+        emit("pdf-path-selected", desktop_api.start_pdf_path(source))
+
+    def attach_handlers():
+        document = window.dom.document
+        document.events.dragover += DOMEventHandler(prevent_default, prevent_default=True)
+        document.events.drop += DOMEventHandler(on_drop, prevent_default=True)
+
+    window.events.loaded += attach_handlers
+
 
 def set_job(job_id, **values):
     with JOBS_LOCK:
@@ -372,6 +415,7 @@ if __name__ == "__main__":
             min_size=(820, 620),
         )
         desktop_api.window = window
+        setup_desktop_drag_and_drop(window, desktop_api)
         try:
             webview.start()
         finally:

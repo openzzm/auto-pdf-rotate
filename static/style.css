@@ -14,6 +14,7 @@ h1 em { color:var(--green); font-style:normal; }
 @keyframes spin { to { transform:rotate(360deg); } }
 .dropzone { min-height:280px; border:2px dashed var(--line); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:15px; cursor:pointer; text-align:center; transition:.2s; }
 .dropzone:hover { border-color:var(--green); background:#f7fff1; }
+.dropzone.drag-over { border-color:var(--green); background:#f7fff1; box-shadow:inset 0 0 0 3px rgba(23,107,84,.12); }
 .dropzone { width:100%; margin:0; color:var(--ink); background:transparent; font-size:inherit; font-weight:inherit; }
 .icon { width:70px; height:82px; display:grid; place-items:center; color:#fff; background:var(--green); border-radius:4px 12px 4px 4px; font:900 18px monospace; transform:rotate(-3deg); }
 .dropzone small { color:#79817d; }

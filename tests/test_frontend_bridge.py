@@ -23,6 +23,19 @@ class FrontendBridgeTests(unittest.TestCase):
         self.assertIn("setInterfaceReady", script)
         self.assertIn("http://127.0.0.1:8765/?desktop=1", application)
 
+    def test_dropzone_supports_drag_and_drop_path_selection(self):
+        script = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
+        application = (ROOT / "app.py").read_text(encoding="utf-8")
+
+        self.assertIn('selectFile.addEventListener("dragover"', script)
+        self.assertIn('selectFile.addEventListener("drop"', script)
+        self.assertIn("pdf-path-selected", script)
+        self.assertIn("start_pdf_path", script)
+        self.assertIn(".drag-over", styles)
+        self.assertIn("DOMEventHandler", application)
+        self.assertIn("pywebviewFullPath", application)
+
 
 if __name__ == "__main__":
     unittest.main()

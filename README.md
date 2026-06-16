@@ -10,6 +10,7 @@ The application runs entirely on your computer. It does not upload documents, ex
 
 - Detects page orientation with RapidOCR and ONNX Runtime.
 - Preserves the original PDF and saves a corrected sibling file.
+- Supports selecting PDFs by clicking the dropzone or dragging a PDF onto it.
 - Uses conservative confidence thresholds to leave uncertain pages unchanged.
 - Retries difficult pages at a higher rendering resolution.
 - Shows progress, elapsed time, average page time, and estimated remaining time.
@@ -49,7 +50,7 @@ python app.py
 
 Open `http://127.0.0.1:8765` after the server starts.
 
-On Windows, `启动网页.bat` can also start browser mode.
+On Windows, `启动网页.bat` can also start browser mode. In the portable desktop app, drag a PDF onto the dropzone or click it to choose a file. Browser drag-and-drop cannot expose the source folder path reliably, so browser mode keeps the click-to-select fallback.
 
 ## Build The Portable Application
 
