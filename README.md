@@ -14,7 +14,7 @@ The application runs entirely on your computer. It does not upload documents, ex
 - Uses conservative confidence thresholds to leave uncertain pages unchanged.
 - Retries difficult pages at a higher rendering resolution.
 - Shows progress, elapsed time, average page time, and estimated remaining time.
-- Provides English and Simplified Chinese documentation; English is the default README.
+- Provides English and Simplified Chinese UI and documentation; English is the default.
 - Provides browser mode and a portable Windows desktop build.
 - Cleans worker threads, task metadata, and temporary files when the application closes.
 
@@ -50,7 +50,7 @@ python app.py
 
 Open `http://127.0.0.1:8765` after the server starts.
 
-On Windows, `启动网页.bat` can also start browser mode. In the portable desktop app, drag a PDF onto the dropzone or click it to choose a file. Browser drag-and-drop cannot expose the source folder path reliably, so browser mode keeps the click-to-select fallback.
+On Windows, `start-browser.bat` can also start browser mode. In the portable desktop app, drag a PDF onto the dropzone or click it to choose a file. Browser drag-and-drop cannot expose the source folder path reliably, so browser mode keeps the click-to-select fallback.
 
 ## Build The Portable Application
 
@@ -96,7 +96,8 @@ The test suite covers rotation decisions, output naming, automatic sibling-file 
 ```text
 app.py                  Flask server, PDF processing, desktop startup
 templates/index.html    Application interface
-static/app.js           UI behavior
+static/app.js           UI behavior and locale loading
+static/locales/         English and Simplified Chinese UI text
 static/style.css        Interface styling
 tests/                  Automated regression tests
 portable.spec           PyInstaller configuration

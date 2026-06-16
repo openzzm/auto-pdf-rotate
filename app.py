@@ -50,14 +50,14 @@ class DesktopApi:
         try:
             return {"ok": True, "job_id": create_path_job(source), "source": str(source)}
         except Exception as exc:
-            return {"ok": False, "message": str(exc)}
+            return {"ok": False, "message_key": "error.selectFailed", "message_params": {"details": str(exc)}}
 
     def start_pdf_path(self, source):
         source = Path(source)
         try:
             return {"ok": True, "job_id": create_path_job(source), "source": str(source)}
         except Exception as exc:
-            return {"ok": False, "message": str(exc)}
+            return {"ok": False, "message_key": "error.selectFailed", "message_params": {"details": str(exc)}}
 
 
 def setup_desktop_drag_and_drop(window, desktop_api):
@@ -84,7 +84,7 @@ def setup_desktop_drag_and_drop(window, desktop_api):
                 source = path
                 break
         if not source:
-            emit("pdf-drop-error", {"message": "请拖拽有效的 PDF 文件，或点击选择文件"})
+            emit("pdf-drop-error", {"key": "error.invalidDrop"})
             return
         emit("pdf-path-selected", desktop_api.start_pdf_path(source))
 
@@ -115,7 +115,7 @@ def output_path_for(source):
 
 def select_pdf_path(window=None):
     if window is not None:
-        paths = window.create_file_dialog(dialog_type=10, file_types=("PDF 文件 (*.pdf)",))
+        paths = window.create_file_dialog(dialog_type=10, file_types=("PDF files (*.pdf)",))
         if not paths:
             return None
         return Path(paths[0] if isinstance(paths, (list, tuple)) else paths)
@@ -127,7 +127,7 @@ def select_pdf_path(window=None):
     root.withdraw()
     root.attributes("-topmost", True)
     try:
-        selected = filedialog.askopenfilename(filetypes=[("PDF 文件", "*.pdf")])
+        selected = filedialog.askopenfilename(filetypes=[("PDF files", "*.pdf")])
         return Path(selected) if selected else None
     finally:
         root.destroy()
@@ -282,12 +282,13 @@ def process_pdf(job_id, source, output):
             elapsed_seconds=0,
             average_page_seconds=0,
             eta_seconds=None,
-            message="正在分析页面方向",
+            message_key="job.analyzing",
+            message_params={},
         )
 
         for index, page in enumerate(doc):
             if SHUTDOWN_EVENT.is_set():
-                raise InterruptedError("程序正在退出")
+                raise InterruptedError("The application is shutting down")
             image = render_page(page, 0.75)
             angle, analysis = choose_rotation(image)
             if needs_high_resolution_retry(angle, analysis):
@@ -308,7 +309,8 @@ def process_pdf(job_id, source, output):
                 elapsed_seconds=round(elapsed, 1),
                 average_page_seconds=round(average, 2),
                 eta_seconds=round(average * (total - completed), 1),
-                message=f"正在分析第 {completed} / {total} 页",
+                message_key="job.analyzingPage",
+                message_params={"current": completed, "total": total},
             )
 
         doc.save(output, garbage=4, deflate=True)
@@ -328,7 +330,8 @@ def process_pdf(job_id, source, output):
             eta_seconds=0,
             changes=changes,
             saved_path=str(output),
-            message=f"处理完成，共自动旋转 {len(changes)} 页",
+            message_key="job.completedCount",
+            message_params={"count": len(changes)},
         )
     except Exception as exc:
         if not SHUTDOWN_EVENT.is_set():
@@ -336,7 +339,8 @@ def process_pdf(job_id, source, output):
                 job_id,
                 status="error",
                 elapsed_seconds=round(time.time() - started_at, 1),
-                message=f"处理失败：{exc}",
+                message_key="error.processingFailed",
+                message_params={"details": str(exc)},
             )
     finally:
         if doc is not None:
@@ -356,13 +360,13 @@ def select_pdf():
     try:
         return jsonify({"ok": True, "job_id": create_path_job(source), "source": str(source)})
     except Exception as exc:
-        return jsonify({"ok": False, "message": str(exc)}), 400
+        return jsonify({"ok": False, "message_key": "error.selectFailed", "message_params": {"details": str(exc)}}), 400
 
 
 def create_path_job(source):
     source = Path(source).resolve()
     if not source.is_file() or source.suffix.lower() != ".pdf":
-        raise ValueError("请选择有效的 PDF 文件")
+        raise ValueError("Please select a valid PDF file")
     job_id = uuid.uuid4().hex
     output = output_path_for(source)
     set_job(
@@ -378,6 +382,8 @@ def create_path_job(source):
         output=str(output),
         name=output.name,
         saved_path=str(output),
+        message_key="job.queued",
+        message_params={},
     )
     worker = threading.Thread(target=process_pdf, args=(job_id, str(source), str(output)), daemon=True)
     with WORKERS_LOCK:
@@ -391,7 +397,7 @@ def job_status(job_id):
     with JOBS_LOCK:
         job = JOBS.get(job_id)
         if not job:
-            return jsonify({"error": "任务不存在"}), 404
+            return jsonify({"error_key": "error.jobNotFound"}), 404
         return jsonify({key: value for key, value in job.items() if key != "output"})
 
 
@@ -407,7 +413,7 @@ if __name__ == "__main__":
         server_thread = threading.Thread(target=server.serve_forever, daemon=True)
         server_thread.start()
         window = webview.create_window(
-            "PDF 页面方向自动修正",
+            "Auto PDF Rotate",
             "http://127.0.0.1:8765/?desktop=1",
             js_api=desktop_api,
             width=1180,

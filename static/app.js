@@ -1,5 +1,10 @@
+const DEFAULT_LANGUAGE = "en";
+const LANGUAGE_STORAGE_KEY = "auto-pdf-rotate-language";
+const SUPPORTED_LANGUAGES = ["en", "zh-CN"];
+
 const selectFile = document.querySelector("#selectFile");
 const startupLoading = document.querySelector("#startupLoading");
+const languageSelect = document.querySelector("#languageSelect");
 const fileName = document.querySelector("#fileName");
 const progressBox = document.querySelector("#progressBox");
 const result = document.querySelector("#result");
@@ -12,83 +17,133 @@ const savedPath = document.querySelector("#savedPath");
 const elapsed = document.querySelector("#elapsed");
 const average = document.querySelector("#average");
 const eta = document.querySelector("#eta");
+
 let timer = null;
 let displayedElapsed = 0;
 let desktopApiReadyPromise = null;
+let translations = {};
+let currentJob = null;
+let currentLanguage = normalizeLanguage(localStorage.getItem(LANGUAGE_STORAGE_KEY));
 const isDesktop = new URL(window.location.href).searchParams.get("desktop") === "1";
 
-initializeInterface();
+initializeApp();
 
-selectFile.addEventListener("click", async () => {
-  selectFile.disabled = true;
-  error.classList.add("hidden");
-  result.classList.add("hidden");
-  try {
-    const response = await selectPdf();
-    startJobFromResponse(response);
-  } catch (e) {
-    showError(e.message);
-  }
-});
+async function initializeApp() {
+  await loadLanguage(currentLanguage);
+  applyLanguage();
+  bindEvents();
+  initializeInterface();
+}
 
-selectFile.addEventListener("dragover", event => {
-  event.preventDefault();
-  if (!selectFile.disabled) selectFile.classList.add("drag-over");
-});
+function bindEvents() {
+  languageSelect.addEventListener("change", async () => {
+    currentLanguage = normalizeLanguage(languageSelect.value);
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, currentLanguage);
+    await loadLanguage(currentLanguage);
+    applyLanguage();
+    if (currentJob) renderJob(currentJob);
+  });
 
-selectFile.addEventListener("dragleave", event => {
-  if (!selectFile.contains(event.relatedTarget)) {
-    selectFile.classList.remove("drag-over");
-  }
-});
-
-selectFile.addEventListener("drop", async event => {
-  event.preventDefault();
-  selectFile.classList.remove("drag-over");
-  error.classList.add("hidden");
-  result.classList.add("hidden");
-  const file = event.dataTransfer?.files?.[0];
-  if (!file) return;
-  if (!file.name.toLowerCase().endsWith(".pdf")) {
-    showError("请拖拽有效的 PDF 文件");
-    return;
-  }
-  if (isDesktop) {
-    const path = file.pywebviewFullPath || file.path;
-    if (!path) return;
+  selectFile.addEventListener("click", async () => {
     selectFile.disabled = true;
+    error.classList.add("hidden");
+    result.classList.add("hidden");
     try {
-      await waitForDesktopApi();
-      startJobFromResponse(await window.pywebview.api.start_pdf_path(path));
+      const response = await selectPdf();
+      startJobFromResponse(response);
     } catch (e) {
       showError(e.message);
     }
-    return;
-  }
-  showError("浏览器拖拽无法获取源文件路径，请点击选择 PDF 文件");
-});
+  });
 
-window.addEventListener("pdf-path-selected", event => {
-  selectFile.disabled = true;
-  error.classList.add("hidden");
-  result.classList.add("hidden");
-  try {
-    startJobFromResponse(event.detail);
-  } catch (e) {
-    showError(e.message);
-  }
-});
+  selectFile.addEventListener("dragover", event => {
+    event.preventDefault();
+    if (!selectFile.disabled) selectFile.classList.add("drag-over");
+  });
 
-window.addEventListener("pdf-drop-error", event => {
-  showError(event.detail.message);
-});
+  selectFile.addEventListener("dragleave", event => {
+    if (!selectFile.contains(event.relatedTarget)) {
+      selectFile.classList.remove("drag-over");
+    }
+  });
+
+  selectFile.addEventListener("drop", async event => {
+    event.preventDefault();
+    selectFile.classList.remove("drag-over");
+    error.classList.add("hidden");
+    result.classList.add("hidden");
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      showError(t("error.invalidDrop"));
+      return;
+    }
+    if (isDesktop) {
+      const path = file.pywebviewFullPath || file.path;
+      if (!path) return;
+      selectFile.disabled = true;
+      try {
+        await waitForDesktopApi();
+        startJobFromResponse(await window.pywebview.api.start_pdf_path(path));
+      } catch (e) {
+        showError(e.message);
+      }
+      return;
+    }
+    showError(t("error.browserDropNoPath"));
+  });
+
+  window.addEventListener("pdf-path-selected", event => {
+    selectFile.disabled = true;
+    error.classList.add("hidden");
+    result.classList.add("hidden");
+    try {
+      startJobFromResponse(event.detail);
+    } catch (e) {
+      showError(e.message);
+    }
+  });
+
+  window.addEventListener("pdf-drop-error", event => {
+    showError(t(event.detail.key || "error.invalidDrop", event.detail.params || {}));
+  });
+}
+
+function normalizeLanguage(language) {
+  return SUPPORTED_LANGUAGES.includes(language) ? language : DEFAULT_LANGUAGE;
+}
+
+async function loadLanguage(language) {
+  const response = await fetch(`/static/locales/${language}.json`);
+  if (!response.ok) throw new Error(`Failed to load language: ${language}`);
+  translations = await response.json();
+}
+
+function applyLanguage() {
+  document.documentElement.lang = currentLanguage;
+  document.title = t("app.title");
+  languageSelect.value = currentLanguage;
+  document.querySelectorAll("[data-i18n]").forEach(element => {
+    element.textContent = t(element.dataset.i18n);
+  });
+}
+
+function t(key, params = {}) {
+  const template = translations[key] || key;
+  return Object.entries(params).reduce(
+    (text, [name, value]) => text.replaceAll(`{${name}}`, value),
+    template,
+  );
+}
 
 function startJobFromResponse(response) {
   if (response.cancelled) {
     selectFile.disabled = false;
     return;
   }
-  if (!response.ok) throw new Error(response.message || "选择文件失败");
+  if (!response.ok) {
+    throw new Error(t(response.message_key || "error.selectFailed", response.message_params || {}));
+  }
 
   fileName.textContent = response.source;
   progressBox.classList.remove("hidden");
@@ -115,7 +170,7 @@ async function initializeInterface() {
     if (isDesktop) await waitForDesktopApi();
     setInterfaceReady();
   } catch (e) {
-    startupLoading.querySelector("strong").textContent = "初始化失败";
+    startupLoading.querySelector("strong").textContent = t("startup.failed");
     startupLoading.querySelector("small").textContent = e.message;
     showError(e.message);
   }
@@ -133,7 +188,7 @@ function waitForDesktopApi() {
   if (!desktopApiReadyPromise) {
     desktopApiReadyPromise = new Promise((resolve, reject) => {
       const timeout = setTimeout(
-        () => reject(new Error("桌面文件选择器初始化超时，请重新启动程序")),
+        () => reject(new Error(t("error.desktopApiTimeout"))),
         10000,
       );
       window.addEventListener("pywebviewready", () => {
@@ -141,7 +196,7 @@ function waitForDesktopApi() {
         if (typeof window.pywebview?.api?.select_pdf === "function") {
           resolve();
         } else {
-          reject(new Error("桌面文件选择器初始化失败，请重新启动程序"));
+          reject(new Error(t("error.desktopApiMissing")));
         }
       }, { once: true });
     });
@@ -152,7 +207,7 @@ function waitForDesktopApi() {
 async function selectPdfFromLocalServer() {
   const response = await fetch("/api/select-pdf", { method: "POST" });
   const body = await response.json();
-  if (!response.ok) throw new Error(body.message || "选择文件失败");
+  if (!response.ok) throw new Error(t(body.message_key || "error.selectFailed", body.message_params || {}));
   return body;
 }
 
@@ -160,36 +215,46 @@ async function poll(jobId) {
   try {
     const response = await fetch(`/api/jobs/${jobId}`);
     const job = await response.json();
-    if (!response.ok) throw new Error(job.error);
-    message.textContent = job.message || "正在准备";
-    displayedElapsed = Math.max(displayedElapsed, job.elapsed_seconds || 0);
-    average.textContent = job.average_page_seconds
-      ? `${job.average_page_seconds.toFixed(2)} 秒`
-      : "--";
-    eta.textContent = job.eta_seconds === 0
-      ? "00:00"
-      : job.eta_seconds
-        ? formatDuration(job.eta_seconds)
-        : "计算中";
-    updateTimeDisplay();
-    percent.textContent = `${job.progress || 0}%`;
-    bar.style.width = `${job.progress || 0}%`;
+    if (!response.ok) throw new Error(t(job.error_key || "error.jobNotFound"));
+    currentJob = job;
+    renderJob(job);
     if (job.status === "done") {
-      const pages = job.changes.map(x => x.page).join("、");
-      const changeSummary = job.changes.length
-        ? `自动旋转了 ${job.changes.length} 页：第 ${pages} 页`
-        : "未检测到需要旋转的页面";
-      summary.textContent = `${changeSummary}；总耗时 ${formatDuration(job.elapsed_seconds)}`;
-      savedPath.textContent = `已自动保存：${job.saved_path}`;
-      result.classList.remove("hidden");
       clearInterval(timer);
       selectFile.disabled = false;
       return;
     }
-    if (job.status === "error") throw new Error(job.message);
+    if (job.status === "error") {
+      throw new Error(t(job.message_key || "error.processingFailed", job.message_params || {}));
+    }
     setTimeout(() => poll(jobId), 800);
   } catch (e) {
     showError(e.message);
+  }
+}
+
+function renderJob(job) {
+  message.textContent = t(job.message_key || "job.queued", job.message_params || {});
+  displayedElapsed = Math.max(displayedElapsed, job.elapsed_seconds || 0);
+  average.textContent = job.average_page_seconds
+    ? `${job.average_page_seconds.toFixed(2)} ${t("stats.seconds")}`
+    : "--";
+  eta.textContent = job.eta_seconds === 0
+    ? "00:00"
+    : job.eta_seconds
+      ? formatDuration(job.eta_seconds)
+      : t("stats.calculating");
+  updateTimeDisplay();
+  percent.textContent = `${job.progress || 0}%`;
+  bar.style.width = `${job.progress || 0}%`;
+
+  if (job.status === "done") {
+    const pages = job.changes.map(change => change.page).join(currentLanguage === "zh-CN" ? "、" : ", ");
+    const changeSummary = job.changes.length
+      ? t("result.rotatedPages", { count: job.changes.length, pages })
+      : t("result.noRotations");
+    summary.textContent = `${changeSummary} ${t("result.totalTime", { duration: formatDuration(job.elapsed_seconds) })}`;
+    savedPath.textContent = t("result.savedPath", { path: job.saved_path });
+    result.classList.remove("hidden");
   }
 }
 

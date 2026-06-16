@@ -1,49 +1,57 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PDF 页面方向自动修正</title>
+  <title data-i18n="app.title">Auto PDF Rotate</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <label class="language-picker">
+    <span data-i18n="language.label">Language</span>
+    <select id="languageSelect" aria-label="Language">
+      <option value="en">English</option>
+      <option value="zh-CN">简体中文</option>
+    </select>
+  </label>
+
   <main>
     <section class="hero">
       <span class="eyebrow">LOCAL PDF TOOL</span>
-      <h1>PDF 页面方向<br><em>自动修正</em></h1>
-      <p>上传扫描 PDF，系统自动识别横倒、上下颠倒页面，并生成修正后的文件。文件仅在本机处理。</p>
+      <h1><span data-i18n="hero.titleLine1">PDF Page Orientation</span><br><em data-i18n="hero.titleLine2">Auto Correction</em></h1>
+      <p data-i18n="hero.description">Detect sideways and upside-down pages in scanned PDFs and create a corrected copy. Files are processed only on this computer.</p>
     </section>
 
     <section class="panel">
       <div id="startupLoading" class="startup-loading">
         <span class="spinner" aria-hidden="true"></span>
-        <strong>正在初始化本地处理引擎</strong>
-        <small>正在准备 OCR 与文件选择器，请稍候</small>
+        <strong data-i18n="startup.title">Initializing local processing engine</strong>
+        <small data-i18n="startup.detail">Preparing OCR and the file picker. Please wait.</small>
       </div>
 
       <button id="selectFile" class="dropzone" type="button" disabled>
         <span class="icon">PDF</span>
-        <strong id="fileName">点击或拖拽 PDF 文件</strong>
-        <small>处理完成后自动保存到源文件同目录</small>
+        <strong id="fileName" data-i18n="dropzone.title">Click or drag a PDF file here</strong>
+        <small data-i18n="dropzone.hint">The corrected file will be saved beside the source PDF.</small>
       </button>
 
       <div id="progressBox" class="progress-box hidden">
         <div class="progress-head">
-          <strong id="message">准备处理</strong>
+          <strong id="message" data-i18n="job.queued">Ready to process</strong>
           <span id="percent">0%</span>
         </div>
         <div class="track"><div id="bar"></div></div>
         <div class="time-stats">
-          <div><small>已用时间</small><strong id="elapsed">00:00</strong></div>
-          <div><small>平均每页</small><strong id="average">--</strong></div>
-          <div><small>预计剩余</small><strong id="eta">计算中</strong></div>
+          <div><small data-i18n="stats.elapsed">Elapsed</small><strong id="elapsed">00:00</strong></div>
+          <div><small data-i18n="stats.average">Average per page</small><strong id="average">--</strong></div>
+          <div><small data-i18n="stats.eta">Estimated remaining</small><strong id="eta" data-i18n="stats.calculating">Calculating</strong></div>
         </div>
       </div>
 
       <div id="result" class="result hidden">
         <span class="check">✓</span>
         <div>
-          <strong>处理完成</strong>
+          <strong data-i18n="result.title">Processing complete</strong>
           <p id="summary"></p>
         </div>
         <p id="savedPath"></p>
@@ -51,7 +59,7 @@
       <p id="error" class="error hidden"></p>
     </section>
   </main>
-  <footer>使用自适应轻量方向检测；正常页面只分析一次，方向不明确的页面会保持原样。</footer>
+  <footer data-i18n="footer">Uses adaptive lightweight orientation detection. Normal pages are analyzed once, and uncertain pages are left unchanged.</footer>
   <script src="/static/app.js"></script>
 </body>
 </html>

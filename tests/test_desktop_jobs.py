@@ -48,6 +48,23 @@ class DesktopPathJobTests(unittest.TestCase):
             with app.WORKERS_LOCK:
                 app.WORKERS.clear()
 
+    def test_created_job_uses_translatable_message_key(self):
+        with tempfile.TemporaryDirectory(dir=ROOT) as temp_dir:
+            source = Path(temp_dir) / "sample.pdf"
+            source.write_bytes(b"pdf")
+
+            with patch.object(app.threading.Thread, "start"):
+                job_id = app.create_path_job(source)
+
+            try:
+                self.assertEqual(app.JOBS[job_id]["message_key"], "job.queued")
+                self.assertNotIn("message", app.JOBS[job_id])
+            finally:
+                with app.JOBS_LOCK:
+                    app.JOBS.pop(job_id, None)
+                with app.WORKERS_LOCK:
+                    app.WORKERS.clear()
+
     def test_desktop_api_returns_cancelled_when_picker_is_closed(self):
         desktop_api = app.DesktopApi()
         desktop_api.window = FakeWindow(None)

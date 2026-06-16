@@ -14,7 +14,7 @@
 - 使用保守的置信度阈值，方向不明确的页面保持原样。
 - 对难以判断的页面使用更高分辨率重试。
 - 显示处理进度、已用时间、平均每页耗时和预计剩余时间。
-- 提供英语和简体中文文档，默认 README 使用英语。
+- 提供英语和简体中文界面及文档，默认使用英语。
 - 支持浏览器模式和 Windows 便携桌面版。
 - 关闭程序时清理工作线程、任务信息和临时文件。
 
@@ -50,7 +50,7 @@ python app.py
 
 服务启动后，请访问 `http://127.0.0.1:8765`。
 
-Windows 下也可以双击 `启动网页.bat` 启动浏览器模式。在便携桌面版中，可以将 PDF 拖拽到选择区域，也可以点击选择文件。普通浏览器拖拽无法可靠暴露源文件目录，因此浏览器模式保留点击选择作为兜底。
+Windows 下也可以双击 `start-browser.bat` 启动浏览器模式。在便携桌面版中，可以将 PDF 拖拽到选择区域，也可以点击选择文件。普通浏览器拖拽无法可靠暴露源文件目录，因此浏览器模式保留点击选择作为兜底。
 
 ## 构建便携版
 
@@ -96,7 +96,8 @@ python -m unittest discover -s tests -v
 ```text
 app.py                  Flask 服务、PDF 处理和桌面启动
 templates/index.html    应用界面
-static/app.js           界面行为
+static/app.js           界面行为和语言资源加载
+static/locales/         英语和简体中文界面文案
 static/style.css        界面样式
 tests/                  自动化回归测试
 portable.spec           PyInstaller 配置

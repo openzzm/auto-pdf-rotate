@@ -36,6 +36,21 @@ class FrontendBridgeTests(unittest.TestCase):
         self.assertIn("DOMEventHandler", application)
         self.assertIn("pywebviewFullPath", application)
 
+    def test_ui_internationalization_defaults_to_english(self):
+        script = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+        page = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+        english = (ROOT / "static" / "locales" / "en.json").read_text(encoding="utf-8")
+        chinese = (ROOT / "static" / "locales" / "zh-CN.json").read_text(encoding="utf-8")
+
+        self.assertIn('<html lang="en">', page)
+        self.assertIn('id="languageSelect"', page)
+        self.assertIn('data-i18n="app.title"', page)
+        self.assertIn('const DEFAULT_LANGUAGE = "en"', script)
+        self.assertIn("static/locales", script)
+        self.assertIn("localStorage.setItem", script)
+        self.assertIn('"app.title": "Auto PDF Rotate"', english)
+        self.assertIn('"app.title": "PDF 页面方向自动修正"', chinese)
+
 
 if __name__ == "__main__":
     unittest.main()
