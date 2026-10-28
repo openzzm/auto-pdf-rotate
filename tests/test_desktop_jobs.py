@@ -74,7 +74,7 @@ class DesktopPathJobTests(unittest.TestCase):
 
     def test_desktop_api_returns_cancelled_when_picker_is_closed(self):
         desktop_api = app.DesktopApi()
-        desktop_api.window = FakeWindow(None)
+        desktop_api._window = FakeWindow(None)
         self.assertEqual(desktop_api.select_pdf(), {"ok": False, "cancelled": True})
 
     def test_desktop_api_can_start_job_from_dropped_path(self):
@@ -90,7 +90,7 @@ class DesktopPathJobTests(unittest.TestCase):
     def test_desktop_api_passes_language_from_picker_selection(self):
         source = Path(__file__).resolve()
         desktop_api = app.DesktopApi()
-        desktop_api.window = FakeWindow([str(source)])
+        desktop_api._window = FakeWindow([str(source)])
 
         with patch.object(app, "create_path_job", return_value="job-id") as create:
             response = desktop_api.select_pdf("zh-CN")

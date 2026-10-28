@@ -47,10 +47,13 @@ OUTPUT_SUFFIXES = {
 
 class DesktopApi:
     def __init__(self):
-        self.window = None
+        # Keep the window private: pywebview recursively exposes every public
+        # attribute of js_api, and walking the native WinForms object tree
+        # hangs or crashes the bridge before pywebviewready fires.
+        self._window = None
 
     def select_pdf(self, language=DEFAULT_LANGUAGE):
-        source = select_pdf_path(self.window)
+        source = select_pdf_path(self._window)
         if not source:
             return {"ok": False, "cancelled": True}
         try:
@@ -461,7 +464,7 @@ if __name__ == "__main__":
             height=780,
             min_size=(820, 620),
         )
-        desktop_api.window = window
+        desktop_api._window = window
         setup_desktop_drag_and_drop(window, desktop_api)
         try:
             webview.start()
