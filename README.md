@@ -74,6 +74,16 @@ release\AutoPDFRotate-Portable\AutoPDFRotate.exe
 
 Copy the entire `AutoPDFRotate-Portable` directory when moving the application to another computer.
 
+### Troubleshooting: `Failed to resolve Python.Runtime.Loader.Initialize`
+
+Windows marks files extracted from a downloaded zip as coming from the internet, and .NET Framework refuses to load the bundled `Python.Runtime.dll`. Builds after v1.0.0 remove this mark automatically at startup. For v1.0.0, unblock the files once in PowerShell:
+
+```powershell
+Get-ChildItem -Recurse "C:\Path\To\AutoPDFRotate-Portable" | Unblock-File
+```
+
+Alternatively, right-click the downloaded zip, open Properties, check Unblock, and extract it again.
+
 ## Tests
 
 ```powershell

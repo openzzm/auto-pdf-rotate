@@ -172,6 +172,26 @@ def shutdown_cleanup():
         WORKERS.clear()
 
 
+def unblock_bundled_assemblies(root=BUNDLE_ROOT):
+    """Remove the Mark of the Web from bundled DLLs.
+
+    Windows tags files extracted from a downloaded zip with a Zone.Identifier
+    stream. .NET Framework refuses to load such assemblies, so pythonnet fails
+    with "Failed to resolve Python.Runtime.Loader.Initialize".
+    """
+    if os.name != "nt":
+        return 0
+    removed = 0
+    for path in Path(root).rglob("*.dll"):
+        try:
+            os.remove(f"{path}:Zone.Identifier")
+            removed += 1
+        except OSError:
+            # No mark present, or the folder is read-only; nothing else to do.
+            pass
+    return removed
+
+
 def run_self_test(report_path):
     test_doc = fitz.open()
     test_doc.new_page()
@@ -424,6 +444,8 @@ if __name__ == "__main__":
     if getattr(sys, "frozen", False) and "--self-test" in sys.argv:
         run_self_test(APP_ROOT / "self-test.json")
     elif getattr(sys, "frozen", False):
+        # Must run before pywebview loads pythonnet and the WebView2 assemblies.
+        unblock_bundled_assemblies()
         import webview
         from werkzeug.serving import make_server
 
